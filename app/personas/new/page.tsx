@@ -1,10 +1,13 @@
 "use client";
+import React from 'react';
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { motion } from "framer-motion";
 import yaml from "js-yaml";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PersonaPreview } from "@/components/persona/PersonaPreview";
 
 const formSchema = z.object({
+  name: z.string().min(1).max(50),
   curiosity: z.number().min(0).max(1),
   empathy: z.number().min(0).max(1),
   skepticism: z.number().min(0).max(1),
@@ -27,10 +31,16 @@ const formSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
+type PersonaFormValues = z.infer<typeof formSchema>;
+
 export default function CreatePersonaPage() {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const { toast } = useToast();
+  const [isSaving, startSaving] = React.useTransition();
+
+  const form = useForm<PersonaFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       curiosity: 0.5,
       empathy: 0.5,
       skepticism: 0.5,
@@ -39,10 +49,34 @@ export default function CreatePersonaPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const yamlString = yaml.dump(values);
-    console.log("Persona YAML:", yamlString);
-    // In a real application, you would send this to an API or save to a file
+  async function onSubmit(values: PersonaFormValues) {
+    startSaving(async () => {
+      try {
+        const res = await fetch("/api/personas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Unknown error");
+        }
+
+        const data = await res.json();
+        toast({
+          title: "Success!",
+          description: `Persona saved to ${data.path}`,
+        });
+        form.reset(); // Reset form after successful save
+      } catch (error: any) {
+        toast({
+          title: "Error saving persona",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    });
   }
 
   const traits = [
@@ -51,7 +85,7 @@ export default function CreatePersonaPage() {
     { name: "skepticism", label: "Skepticism" },
     { name: "humor", label: "Humor" },
     { name: "confidence", label: "Confidence" },
-  ] as const; // Ensure type safety for trait names
+  ] as const;
 
   const formValues = form.watch();
 
@@ -70,6 +104,19 @@ export default function CreatePersonaPage() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-medium">Persona Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., The Curious Explorer" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 {traits.map((trait) => (
                   <FormField
                     key={trait.name}
@@ -98,8 +145,8 @@ export default function CreatePersonaPage() {
                     )}
                   />
                 ))}
-                <Button type="submit" className="w-full">
-                  Save Persona
+                <Button type="submit" className="w-full" disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save Persona"}
                 </Button>
               </form>
             </Form>
