@@ -1,3 +1,10 @@
+name: Konrad
+slug: konrad
+
+traits:
+  tone_formal: 20
+  tone_informal: 80
+
 # Style & Delivery
 tone_formal: 0.2           # Conversational, plainspoken
 tone_informal: 0.8         # Comfortable, raw, accessible
