@@ -4,6 +4,16 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { parse } from "yaml";
+import { Card } from "@/components/ui/card";
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
 import {
   Table,
   TableBody,
@@ -88,6 +98,18 @@ export default function VersionComparer({
 
   const traits = getAllTraits();
 
+  // Get numeric traits for the chart
+  const numericTraits = traits.filter(
+    trait => typeof personaA[trait] === "number" && typeof personaB[trait] === "number"
+  );
+
+  // Prepare data for the radar chart
+  const chartData = numericTraits.map((trait) => ({
+    trait,
+    VersionA: personaA[trait] as number,
+    VersionB: personaB[trait] as number,
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -161,6 +183,41 @@ export default function VersionComparer({
             </TableBody>
           </Table>
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mt-8"
+        >
+          <Card className="p-6">
+            <h3 className="text-xl font-semibold mb-4">Trait Comparison</h3>
+            <div className="w-full h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={chartData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="trait" />
+                  <PolarRadiusAxis angle={30} domain={[0, 1]} />
+                  <Radar
+                    name="Version A"
+                    dataKey="VersionA"
+                    stroke="#8884d8"
+                    fill="#8884d8"
+                    fillOpacity={0.6}
+                  />
+                  <Radar
+                    name="Version B"
+                    dataKey="VersionB"
+                    stroke="#82ca9d"
+                    fill="#82ca9d"
+                    fillOpacity={0.4}
+                  />
+                  <Legend />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </motion.div>
       )}
     </div>
   );
