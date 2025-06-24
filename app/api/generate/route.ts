@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as yaml from "js-yaml";
+import * as fs from "fs";
 
-// Specify Node.js runtime
+// Auto-versions persona YAML on opinion generation
 export const runtime = "nodejs";
 
 // Define types for the request body
@@ -35,6 +37,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create versioned persona file
+    let versionSavedTo = "";
+    try {
+      const timestamp = new Date().toISOString().split("T")[0]; // e.g., "2025-06-24"
+      const slug = body.persona.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const folder = `data/personas/${slug}`;
+      const filePath = `${folder}/${timestamp}.yaml`;
+
+      // Ensure folder exists
+      await fs.promises.mkdir(folder, { recursive: true });
+
+      // Serialize and save persona
+      const yamlText = yaml.dump(body.persona);
+      await fs.promises.writeFile(filePath, yamlText, "utf-8");
+      
+      versionSavedTo = filePath;
+    } catch (err) {
+      console.error("Failed to save version:", err);
+      // Continue with generation even if versioning fails
+    }
+
     // Build persona description by merging traits
     const personaDescription = Object.entries(body.persona)
       .filter(([key]) => key !== "name")
@@ -64,7 +87,10 @@ export async function POST(request: NextRequest) {
 
       const stream = await response.text();
 
-      return NextResponse.json({ output: stream });
+      return NextResponse.json({ 
+        output: stream,
+        versionSavedTo
+      });
     } catch (error) {
       console.error("LLM generation error:", error);
       return NextResponse.json(
