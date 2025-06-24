@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PersonaPreview } from "@/components/persona/PersonaPreview";
 
 const formSchema = z.object({
   curiosity: z.number().min(0).max(1),
@@ -52,6 +53,8 @@ export default function CreatePersonaPage() {
     { name: "confidence", label: "Confidence" },
   ] as const; // Ensure type safety for trait names
 
+  const formValues = form.watch();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -59,48 +62,51 @@ export default function CreatePersonaPage() {
       transition={{ duration: 0.5 }}
       className="flex justify-center items-center min-h-screen bg-blue-200 p-4"
     >
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Create New Persona</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {traits.map((trait) => (
-                <FormField
-                  key={trait.name}
-                  control={form.control}
-                  name={trait.name}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-medium">{trait.label}</FormLabel>
-                      <div className="flex items-center space-x-4">
-                        <FormControl className="flex-grow">
-                          <Slider
-                            min={0}
-                            max={1}
-                            step={0.01}
-                            value={[field.value]}
-                            onValueChange={(val) => field.onChange(val[0])}
-                            className="w-full"
-                          />
-                        </FormControl>
-                        <span className="w-12 text-right text-sm font-mono">
-                          {field.value.toFixed(2)}
-                        </span>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
-              <Button type="submit" className="w-full">
-                Save Persona
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col md:flex-row gap-6 w-full max-w-4xl">
+        <Card className="w-full md:w-1/2">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Create New Persona</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {traits.map((trait) => (
+                  <FormField
+                    key={trait.name}
+                    control={form.control}
+                    name={trait.name}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg font-medium">{trait.label}</FormLabel>
+                        <div className="flex items-center space-x-4">
+                          <FormControl className="flex-grow">
+                            <Slider
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              value={[field.value]}
+                              onValueChange={(val) => field.onChange(val[0])}
+                              className="w-full"
+                            />
+                          </FormControl>
+                          <span className="w-12 text-right text-sm font-mono">
+                            {field.value.toFixed(2)}
+                          </span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+                <Button type="submit" className="w-full">
+                  Save Persona
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+        <PersonaPreview {...formValues} />
+      </div>
     </motion.div>
   );
 }
