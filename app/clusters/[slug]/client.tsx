@@ -4,7 +4,7 @@ import React from "react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import ClusterReactions from "@/components/persona/ClusterReactions"
-import { GenerateOpinion } from "@/components/cluster/GenerateOpinion"
+import { PromptComposer } from "@/components/cluster/PromptComposer"
 import type { NewsCluster, Persona } from "./page"
 
 interface ClusterClientProps {
@@ -39,7 +39,7 @@ export function ClusterClient({ cluster, personas }: ClusterClientProps) {
           </ul>
         </section>
         <ClusterReactions personas={personas} cluster={cluster} />
-        <GenerateOpinion personas={personas} cluster={cluster} />
+        <PromptComposer personas={personas} cluster={cluster} />
       </Card>
       <Link href="/clusters" className="underline hover:text-primary">
         Back to clusters
