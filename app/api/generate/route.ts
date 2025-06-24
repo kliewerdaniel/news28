@@ -87,8 +87,36 @@ export async function POST(request: NextRequest) {
 
       const stream = await response.text();
 
+      // Escape triple backticks in model output to prevent markdown issues
+      const escapedOutput = stream.replace(/```/g, '\\`\\`\\`');
+
+      // Construct file path for MDX article
+      const date = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const personaSlug = body.persona.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const clusterSlug = body.cluster.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const folder = `data/articles/${personaSlug}`;
+      const filename = `${clusterSlug}-${date}.mdx`;
+      const filepath = `${folder}/${filename}`;
+
+      // Ensure articles folder exists
+      await fs.promises.mkdir(folder, { recursive: true });
+
+      // Construct MDX content with frontmatter
+      const mdxContent = `---
+persona: ${body.persona.name}
+topic: ${body.cluster.topic}
+date: ${date}
+---
+
+${escapedOutput}
+`;
+
+      // Write MDX file
+      await fs.promises.writeFile(filepath, mdxContent, "utf-8");
+
       return NextResponse.json({ 
-        output: stream,
+        output: escapedOutput,
+        savedTo: filepath,
         versionSavedTo
       });
     } catch (error) {
