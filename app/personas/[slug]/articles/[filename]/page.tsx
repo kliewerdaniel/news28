@@ -3,7 +3,9 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import path from 'path';
+import yaml from 'js-yaml';
 import { CritiquePanel } from '@/components/critique/CritiquePanel';
+import { ClientArticle } from './client';
 
 // Types for our frontmatter
 interface Frontmatter {
@@ -57,11 +59,39 @@ function parseFrontmatter(content: string): { content: string; frontmatter: Fron
 }
 
 // Dynamic page component
+async function getPersonaData(slug: string) {
+  // Try to find the latest version by listing files and sorting
+  const personaDir = path.join(process.cwd(), 'data', 'personas', slug);
+  
+  try {
+    const files = await fs.readdir(personaDir);
+    const yamlFiles = files.filter(file => file.endsWith('.yaml'));
+    
+    // Sort by date (version) in descending order
+    yamlFiles.sort().reverse();
+    
+    if (yamlFiles.length === 0) {
+      throw new Error('No persona versions found');
+    }
+    
+    // Read the latest version
+    const latestVersion = yamlFiles[0];
+    const content = await fs.readFile(path.join(personaDir, latestVersion), 'utf-8');
+    return yaml.load(content) as any;
+  } catch (error) {
+    console.error('Error loading persona:', error);
+    return null;
+  }
+}
+
 export default async function ArticlePage({
   params,
 }: {
   params: { slug: string; filename: string };
 }) {
+  // Get persona data
+  const personaData = await getPersonaData(params.slug);
+  
   // Read the MDX file
   const filepath = path.join(process.cwd(), 'data', 'articles', params.slug, `${params.filename}.mdx`);
   const file = await fs.readFile(filepath, 'utf-8');
@@ -113,6 +143,14 @@ export default async function ArticlePage({
         content={content}
         topic={frontmatter.topic}
       />
+
+      {/* Client-side components */}
+      <div className="mt-8">
+        <ClientArticle 
+          personaData={personaData} 
+          slug={params.slug}
+        />
+      </div>
     </motion.article>
   );
 }
