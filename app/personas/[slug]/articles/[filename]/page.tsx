@@ -3,6 +3,7 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import path from 'path';
+import { CritiquePanel } from '@/components/critique/CritiquePanel';
 
 // Types for our frontmatter
 interface Frontmatter {
@@ -105,6 +106,13 @@ export default async function ArticlePage({
       <div className="prose max-w-none dark:prose-invert">
         <MDXRemote source={content} />
       </div>
+
+      {/* Critique Panel */}
+      <CritiquePanel 
+        slug={params.slug}
+        content={content}
+        topic={frontmatter.topic}
+      />
     </motion.article>
   );
 }

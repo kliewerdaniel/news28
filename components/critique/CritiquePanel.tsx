@@ -1,78 +1,128 @@
-import { useState } from "react";
+'use client';
+
+import { useState, useTransition } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from 'lucide-react';
 
 interface CritiquePanelProps {
+  slug: string;
   content: string;
-  persona: Record<string, any>;
-  topic?: string;
+  topic: string;
 }
 
-export function CritiquePanel({ content, persona, topic }: CritiquePanelProps) {
-  const [critique, setCritique] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+interface CritiqueResponse {
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+}
 
-  const fetchCritique = async () => {
+export function CritiquePanel({ slug, content, topic }: CritiquePanelProps) {
+  const [critique, setCritique] = useState<CritiqueResponse | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const getCritique = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      // Fetch persona YAML
+      const personaRes = await fetch(`/data/personas/${slug}.yaml`);
+      const persona = await personaRes.text();
 
-      const response = await fetch("/api/critique", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      // Clean article content (remove frontmatter and markdown)
+      const cleanContent = content.replace(/^---[\s\S]*?---\n/, '') // Remove frontmatter
+        .replace(/[#*_`]/g, '') // Remove markdown formatting
+        .trim();
+
+      // Call critique API
+      const response = await fetch('/api/critique', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content,
           persona,
-          topic,
-        }),
+          content: cleanContent,
+          topic
+        })
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate critique");
-      }
-
+      if (!response.ok) throw new Error('Failed to get critique');
+      
       const data = await response.json();
-      setCritique(data.critique);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+      setCritique(data);
+    } catch (error) {
+      console.error('Error getting critique:', error);
     }
   };
 
+  const handleGetCritique = () => {
+    startTransition(() => {
+      getCritique();
+    });
+  };
+
   return (
-    <div className="space-y-4">
-      <Button
-        onClick={fetchCritique}
-        disabled={isLoading}
-        className="w-full md:w-auto"
-      >
-        {isLoading ? "Generating Critique..." : "Get AI Critique"}
-      </Button>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="mt-12"
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle>Critique</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!critique && !isPending && (
+            <Button onClick={handleGetCritique}>
+              Get AI Feedback
+            </Button>
+          )}
 
-      {error && (
-        <Card className="p-4 bg-red-50 border-red-200">
-          <p className="text-red-600">{error}</p>
-        </Card>
-      )}
+          {isPending && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Analyzing...
+            </div>
+          )}
 
-      {critique && !error && (
-        <Card className="p-6 space-y-4">
-          {critique.split("\n").map((line, i) => {
-            if (line.startsWith("## ")) {
-              return (
-                <h3 key={i} className="text-lg font-semibold mt-4">
-                  {line.replace("## ", "")}
-                </h3>
-              );
-            }
-            return line.trim() && <p key={i}>{line}</p>;
-          })}
-        </Card>
-      )}
-    </div>
+          {critique && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Tabs defaultValue="strengths" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="strengths">Strengths</TabsTrigger>
+                  <TabsTrigger value="weaknesses">Weaknesses</TabsTrigger>
+                  <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+                </TabsList>
+                <TabsContent value="strengths">
+                  <ul className="list-disc pl-5 space-y-2">
+                    {critique.strengths.map((strength, i) => (
+                      <li key={i}>{strength}</li>
+                    ))}
+                  </ul>
+                </TabsContent>
+                <TabsContent value="weaknesses">
+                  <ul className="list-disc pl-5 space-y-2">
+                    {critique.weaknesses.map((weakness, i) => (
+                      <li key={i}>{weakness}</li>
+                    ))}
+                  </ul>
+                </TabsContent>
+                <TabsContent value="suggestions">
+                  <ul className="list-disc pl-5 space-y-2">
+                    {critique.suggestions.map((suggestion, i) => (
+                      <li key={i}>{suggestion}</li>
+                    ))}
+                  </ul>
+                </TabsContent>
+              </Tabs>
+            </motion.div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
