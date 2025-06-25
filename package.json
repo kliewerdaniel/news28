@@ -27,6 +27,8 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tailwindcss/postcss": "^4.1.10",
     "@tailwindcss/typography": "^0.5.16",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-tsne": "^0.2.0",
     "@types/mdx": "^2.0.13",
     "@types/react-vertical-timeline-component": "^3.3.6",
     "chromadb": "^3.0.4",
