@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
+import { format } from 'date-fns'
+import { toast } from '@/components/ui/use-toast'
 import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 
@@ -266,6 +268,52 @@ export default async function ThreadedDebatePage({
   const secondRound = await generateSecondRound(cluster, personas, firstRound)
   
   const allResponses = [...firstRound, ...secondRound]
+
+  // Save debate log
+  const threadLog = {
+    clusterSlug: params.slug,
+    createdAt: new Date().toISOString(),
+    personas: personas.map(p => ({
+      slug: p.slug,
+      name: p.name,
+      traits: p.traits
+    })),
+    rounds: [
+      {
+        round: 1,
+        responses: firstRound.map(r => ({
+          personaSlug: r.persona.slug,
+          text: r.text,
+          replyTo: null
+        }))
+      },
+      {
+        round: 2,
+        responses: secondRound.map(r => ({
+          personaSlug: r.persona.slug,
+          text: r.text,
+          replyTo: r.replyTo || null
+        }))
+      }
+    ]
+  }
+
+  // Ensure debates directory exists and save log
+  const debatesDir = path.join(process.cwd(), 'data/debates')
+  const dateStr = format(new Date(), 'yyyyMMdd')
+  const filePath = path.join(debatesDir, `${params.slug}-${dateStr}.json`)
+
+  await fs.mkdir(debatesDir, { recursive: true })
+  await fs.writeFile(filePath, JSON.stringify(threadLog, null, 2), 'utf-8')
+
+  // Log to console and show success toast
+  const savedPath = `/data/debates/${params.slug}-${dateStr}.json`
+  console.log(`Debate saved to ${savedPath}`)
+  toast({
+    title: "Debate Saved",
+    description: `Thread saved to ${savedPath}`,
+    duration: 3000
+  })
 
   return (
     <div className="max-w-4xl mx-auto p-6">
