@@ -4,12 +4,16 @@ import yaml from 'js-yaml'
 import { format } from 'date-fns'
 import { toast } from '@/components/ui/use-toast'
 import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { GuestJoinPanel, GuestPersona } from '@/components/debate/GuestJoinPanel'
 
 interface Persona {
   name: string
-  traits: string[]
+  traits: string[] | Record<string, number>
   slug: string
+  isGuest?: boolean
 }
 
 interface DebateResponse {
@@ -199,10 +203,15 @@ function ResponseCard({ response, replyLines }: {
             />
           </svg>
         ))}
-        <Card className="p-6 mb-4">
+        <Card className={`p-6 mb-4 ${response.persona.isGuest ? 'border-blue-400 border-2' : ''}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <h3 className="text-lg font-bold">{response.persona.name}</h3>
+            {response.persona.isGuest && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                🧑‍💻 Guest
+              </span>
+            )}
           {response.round === 1 && (
             <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
               Opening Statement
@@ -261,13 +270,16 @@ export default async function ThreadedDebatePage({
 }: { 
   params: { slug: string }
 }) {
+  const [showGuestPanel, setShowGuestPanel] = useState(false)
+  const [guestResponses, setGuestResponses] = useState<DebateResponse[]>([])
+  
   const cluster = await loadClusterData(params.slug)
   const personas = await loadPersonas()
   
   const firstRound = await generateFirstRound(cluster, personas)
   const secondRound = await generateSecondRound(cluster, personas, firstRound)
   
-  const allResponses = [...firstRound, ...secondRound]
+  const allResponses = [...firstRound, ...secondRound, ...guestResponses]
 
   // Save debate log
   const threadLog = {
@@ -309,15 +321,71 @@ export default async function ThreadedDebatePage({
   // Log to console and show success toast
   const savedPath = `/data/debates/${params.slug}-${dateStr}.json`
   console.log(`Debate saved to ${savedPath}`)
-  toast({
-    title: "Debate Saved",
-    description: `Thread saved to ${savedPath}`,
-    duration: 3000
-  })
+
+  const handleGuestSubmit = async (guestPersona: GuestPersona) => {
+    const guestResponse: DebateResponse = {
+      persona: {
+        name: guestPersona.name,
+        slug: guestPersona.slug,
+        traits: guestPersona.traits,
+        isGuest: true
+      },
+      text: guestPersona.text,
+      round: guestPersona.round,
+      replyTo: guestPersona.replyTo
+    }
+
+    setGuestResponses(prev => [...prev, guestResponse])
+    setShowGuestPanel(false)
+
+    // Update and save thread log
+    const updatedLog = { ...threadLog }
+    const roundIndex = guestPersona.round - 1
+
+    if (!updatedLog.rounds[roundIndex]) {
+      updatedLog.rounds[roundIndex] = {
+        round: guestPersona.round,
+        responses: []
+      }
+    }
+
+    updatedLog.rounds[roundIndex].responses.push({
+      personaSlug: guestPersona.slug,
+      text: guestPersona.text,
+      replyTo: guestPersona.replyTo || null
+    })
+
+    // Save updated log
+    await fs.writeFile(filePath, JSON.stringify(updatedLog, null, 2), 'utf-8')
+    toast({
+      title: "Guest Response Added",
+      description: "Your response has been added to the debate",
+      duration: 3000
+    })
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">{cluster.topic} - Threaded Debate</h1>
+
+      {/* Guest Join Button */}
+      <div className="mb-8">
+        <Button 
+          onClick={() => setShowGuestPanel(!showGuestPanel)}
+          variant={showGuestPanel ? "secondary" : "default"}
+        >
+          {showGuestPanel ? "Cancel" : "Join as Guest"}
+        </Button>
+      </div>
+
+      {/* Guest Join Panel */}
+      {showGuestPanel && (
+        <GuestJoinPanel
+          onSubmit={handleGuestSubmit}
+          existingPersonas={personas.map(p => ({ name: p.name, slug: p.slug }))}
+          currentRound={Math.max(...allResponses.map(r => r.round))}
+        />
+      )}
       
       <div className="space-y-8">
         {[1, 2].map(round => (
